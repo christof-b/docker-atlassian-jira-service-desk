@@ -51,8 +51,8 @@ EXPOSE 8080
 
 # Set volume mount points for installation and home directory. Changes to the
 # home directory needs to be persisted as well as parts of the installation
-# directory due to eg. logs.
-VOLUME ["/var/atlassian/jira", "/var/atlassian/jira/caches/indexes", "/opt/atlassian/jira/logs"]
+# directory due to eg. logs. Index folder should be mounted manually, because of issues with NFS.
+VOLUME ["/var/atlassian/jira", "/opt/atlassian/jira/logs"]
 
 # Set the default working directory as the installation directory.
 WORKDIR /var/atlassian/jira
