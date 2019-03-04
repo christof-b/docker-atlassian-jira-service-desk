@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  name: atlassian-jira-core
+  labels:
+    app: atlassian-jira-core
+spec:
+  strategy:
+    type: Recreate
+    recreateParams:
+      timeoutSeconds: 600
+      mid:
+        failurePolicy: Abort
+        execNewPod:
+          command:
+            - /bin/rm
+            - '-f'
+            - '-r'
+            - /var/atlassian/jira/.jira-home.lock
+            - /var/atlassian/jira/plugins/.osgi-plugins/felix/felix-cache/*
+          containerName: atlassian-jira-core
+          volumes:
+            - atlassian-jira-core-home
+    resources: {}
+    activeDeadlineSeconds: 21600
+  replicas: 1
+  test: false
+  selector:
+    app: atlassian-jira-core
+    deploymentconfig: atlassian-jira-core
+  template:
+    metadata:
+      labels:
+        app: atlassian-jira-core
+        deploymentconfig: atlassian-jira-core
+    spec:
+      volumes:
+        - name: atlassian-jira-core-logs
+          persistentVolumeClaim:
+            claimName: atlassian-jira-core-logs
+        - name: atlassian-jira-core-home
+          persistentVolumeClaim:
+            claimName: atlassian-jira-core-home
+        - name: atlassian-jira-core-index
+          emptyDir: {}
+      containers:
+        - name: atlassian-jira-core
+          image: >-
+            pro54/atlassian-jira-core:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: CATALINA_OPTS
+              value: >-
+                -Xms1024m -Xmx1024m -Datlassian.plugins.enable.wait=300
+                -Duser.timezone=Europe/Berlin
+            - name: X_PROXY_NAME
+              value: jira.bgm.software
+            - name: X_PROXY_PORT
+              value: '443'
+            - name: X_PROXY_SCHEME
+              value: https
+          resources: {}
+          volumeMounts:
+            - name: atlassian-jira-core-logs
+              mountPath: /opt/atlassian/jira/logs
+            - name: atlassian-jira-core-home
+              mountPath: /var/atlassian/jira
+            - name: atlassian-jira-core-index
+              mountPath: /var/atlassian/jira/caches/indexes
+          livenessProbe:
+            httpGet:
+              path: /secure/Dashboard.jspa
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          terminationMessagePath: /dev/termination-log
+          imagePullPolicy: Always
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
